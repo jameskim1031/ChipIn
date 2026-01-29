@@ -2,8 +2,9 @@ import { Request, Response } from "express";
 import { constructStripeEvent } from "../services/stripe.service";
 import { markSessionPaid } from "../store/session.store";
 import Stripe from "stripe";
+import { handleStripeWebhookEvent } from "../services/stripeWebhook.service";
 
-export function stripeWebhook(req: Request, res: Response) {
+export async function stripeWebhook(req: Request, res: Response) {
   const sig = req.headers["stripe-signature"];
   if (!sig || typeof sig !== "string")
     return res.status(400).send("Missing Stripe-Signature");
@@ -18,9 +19,11 @@ export function stripeWebhook(req: Request, res: Response) {
 
   console.log("✅ Stripe event received:", event.type);
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    markSessionPaid(session.id, session.amount_total ?? null);
+  try {
+    await handleStripeWebhookEvent(event);
+  } catch (err: any) {
+    console.error("❌ Webhook handling failed:", err?.message ?? err);
+    return res.status(500).send("Webhook handler failed");
   }
 
   return res.json({ received: true });
