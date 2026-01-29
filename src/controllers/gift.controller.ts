@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
 import { supabase } from "../services/supabase.service";
-import { createCheckoutSession } from "../services/stripe.service";
+import {
+  createCheckoutSession,
+  retrieveCheckoutSession,
+} from "../services/stripe.service";
 import { sendPaymentEmail } from "../services/email.service";
 import { computeEvenSplit, formatMoney } from "../utils/money";
 import { escapeHtml } from "../utils/escapeHtml";
@@ -8,6 +11,7 @@ import {
   AddInviteesSchema,
   CreateGiftSchema,
 } from "../validators/gift.schemas";
+import { getLatestCheckoutSessionForInvitee } from "../services/checkoutSession.repo";
 
 export async function createGift(req: Request, res: Response) {
   const parsed = CreateGiftSchema.safeParse(req.body);
@@ -58,6 +62,14 @@ export async function addInvitees(req: Request, res: Response) {
   if (error) return res.status(500).json({ error: error.message });
   return res.json({ ok: true, invitees: data ?? [] });
 }
+
+export type LockAndSendResult = {
+  email: string;
+  amountCents: number;
+  stripeSessionId: string;
+  checkoutUrl: string;
+  reused: boolean;
+};
 
 export async function lockAndSend(req: Request, res: Response) {
   const giftId = req.params.giftId;
@@ -113,18 +125,31 @@ export async function lockAndSend(req: Request, res: Response) {
   if (!assigned)
     return res.status(500).json({ error: "Failed to load invitees" });
 
-  const results: Array<{
-    email: string;
-    amountCents: number;
-    stripeSessionId: string;
-    checkoutUrl: string;
-  }> = [];
+  const results: Array<LockAndSendResult> = [];
 
   for (const inv of assigned) {
     if (inv.status === "paid") continue;
     if (inv.amount_cents == null)
       return res.status(500).json({ error: "Invitee amount missing" });
 
+    // 1) If there is an existing unpaid session, reuse it (NO email)
+    const existing = await getLatestCheckoutSessionForInvitee(inv.id);
+
+    if (existing && existing.status === "created") {
+      const s = await retrieveCheckoutSession(existing.stripe_session_id);
+
+      results.push({
+        email: inv.email,
+        amountCents: inv.amount_cents,
+        stripeSessionId: existing.stripe_session_id,
+        checkoutUrl: s.url ?? "", // can be "" if Stripe doesn't return it
+        reused: true,
+      });
+
+      continue;
+    }
+
+    // 2) Otherwise create a new session + insert + email
     const session = await createCheckoutSession({
       email: inv.email,
       amountCents: inv.amount_cents,
@@ -153,6 +178,7 @@ export async function lockAndSend(req: Request, res: Response) {
       .eq("id", inv.id);
     if (invUpdErr) return res.status(500).json({ error: invUpdErr.message });
 
+    // Email only when newly created
     const subject = `Chip in: ${gift.name}`;
     const html = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial;">
@@ -168,8 +194,10 @@ export async function lockAndSend(req: Request, res: Response) {
       amountCents: inv.amount_cents,
       stripeSessionId: session.id,
       checkoutUrl: session.url,
+      reused: false,
     });
   }
 
+  console.log(results);
   return res.json({ ok: true, results });
 }

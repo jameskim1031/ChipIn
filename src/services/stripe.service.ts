@@ -42,3 +42,10 @@ export function constructStripeEvent(rawBody: Buffer, signature: string) {
     env.STRIPE_WEBHOOK_SECRET,
   );
 }
+
+/**
+ * helper to fetch a session URL from Stripe when reusing
+ */
+export async function retrieveCheckoutSession(stripeSessionId: string) {
+  return stripe.checkout.sessions.retrieve(stripeSessionId);
+}
