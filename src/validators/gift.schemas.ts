@@ -23,3 +23,22 @@ export const CreateInvitationLinkSchema = z
 export const JoinTokenParamsSchema = z.object({
   token: z.string().min(8).max(255),
 });
+
+export const JoinInviteeStatusQuerySchema = z.object({
+  email: z.string().email().max(320),
+});
+
+export const JoinRespondSchema = z.discriminatedUnion("decision", [
+  z.object({
+    decision: z.literal("yes"),
+    name: z.string().min(1).max(120),
+    email: z.string().email().max(320),
+    phone: z.string().min(1).max(40),
+  }),
+  z.object({
+    decision: z.literal("no"),
+    name: z.string().min(1).max(120),
+    email: z.string().email().max(320),
+    phone: z.string().min(1).max(40),
+  }),
+]);
