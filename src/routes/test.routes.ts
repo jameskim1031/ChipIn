@@ -3,7 +3,9 @@ import { sendCheckoutLink } from "../controllers/test.controller";
 import { getSessionStatus } from "../store/session.store";
 import {
   addInvitees,
+  createInvitationLink,
   createGift,
+  getJoinGiftByToken,
   lockAndSend,
 } from "../controllers/gift.controller";
 import { getSessionStatusDb } from "../controllers/sessionStatus.controller";
@@ -16,5 +18,7 @@ testRouter.post("/send-checkout-link", (req, res) =>
 
 testRouter.post("/gifts", createGift);
 testRouter.post("/gifts/:giftId/invitees", addInvitees);
+testRouter.post("/gifts/:giftId/invitation-links", createInvitationLink);
+testRouter.get("/join/:token", getJoinGiftByToken);
 testRouter.post("/gifts/:giftId/lock-and-send", lockAndSend);
 testRouter.get("/session-status/:sessionId", getSessionStatusDb);

@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import crypto from "crypto";
 import { supabase } from "../services/supabase.service";
 import {
   createCheckoutSession,
@@ -9,9 +10,21 @@ import { computeEvenSplit, formatMoney } from "../utils/money";
 import { escapeHtml } from "../utils/escapeHtml";
 import {
   AddInviteesSchema,
+  CreateInvitationLinkSchema,
   CreateGiftSchema,
+  JoinTokenParamsSchema,
 } from "../validators/gift.schemas";
 import { getLatestCheckoutSessionForInvitee } from "../services/checkoutSession.repo";
+import { env } from "../config/env";
+
+function generateInvitationToken() {
+  return crypto
+    .randomBytes(24)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
 
 export async function createGift(req: Request, res: Response) {
   const parsed = CreateGiftSchema.safeParse(req.body);
@@ -61,6 +74,119 @@ export async function addInvitees(req: Request, res: Response) {
 
   if (error) return res.status(500).json({ error: error.message });
   return res.json({ ok: true, invitees: data ?? [] });
+}
+
+export async function createInvitationLink(req: Request, res: Response) {
+  const giftId = req.params.giftId;
+  const parsed = CreateInvitationLinkSchema.safeParse(req.body ?? {});
+  if (!parsed.success)
+    return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { data: gift, error: giftErr } = await supabase
+    .from("gift")
+    .select("id")
+    .eq("id", giftId)
+    .single();
+
+  if (giftErr || !gift)
+    return res.status(404).json({ error: "Gift not found" });
+
+  let expiresAtIso: string | null = null;
+  if (parsed.data.expiresAt) {
+    expiresAtIso = new Date(parsed.data.expiresAt).toISOString();
+  } else {
+    const expiresInDays = parsed.data.expiresInDays ?? 7;
+    const d = new Date();
+    d.setDate(d.getDate() + expiresInDays);
+    expiresAtIso = d.toISOString();
+  }
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const token = generateInvitationToken();
+
+    const { data: link, error: linkErr } = await supabase
+      .from("gift_invitation_link")
+      .insert([{ gift_id: giftId, token, expires_at: expiresAtIso }])
+      .select("id,gift_id,token,created_at,expires_at,revoked_at")
+      .single();
+
+    if (!linkErr && link) {
+      return res.status(201).json({
+        ok: true,
+        invitationLink: {
+          id: link.id,
+          giftId: link.gift_id,
+          token: link.token,
+          createdAt: link.created_at,
+          expiresAt: link.expires_at,
+          revokedAt: link.revoked_at,
+          url: `${env.APP_BASE_URL}/join/${link.token}`,
+        },
+      });
+    }
+
+    if (linkErr?.code !== "23505") {
+      return res.status(500).json({ error: linkErr?.message ?? "Unknown error" });
+    }
+  }
+
+  return res
+    .status(500)
+    .json({ error: "Failed to generate unique invitation token" });
+}
+
+export async function getJoinGiftByToken(req: Request, res: Response) {
+  const parsed = JoinTokenParamsSchema.safeParse(req.params);
+  if (!parsed.success)
+    return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { token } = parsed.data;
+  const nowIso = new Date().toISOString();
+
+  const { data: link, error: linkErr } = await supabase
+    .from("gift_invitation_link")
+    .select("id,gift_id,token,created_at,expires_at,revoked_at")
+    .eq("token", token)
+    .single();
+
+  if (linkErr || !link)
+    return res.status(404).json({ error: "Invitation link not found" });
+  if (link.revoked_at)
+    return res.status(410).json({ error: "Invitation link has been revoked" });
+  if (link.expires_at && link.expires_at <= nowIso)
+    return res.status(410).json({ error: "Invitation link has expired" });
+
+  const { data: gift, error: giftErr } = await supabase
+    .from("gift")
+    .select("id,name,currency,total_price_cents,split_locked_at,created_at")
+    .eq("id", link.gift_id)
+    .single();
+
+  if (giftErr || !gift) return res.status(404).json({ error: "Gift not found" });
+
+  const { count: inviteeCount, error: countErr } = await supabase
+    .from("gift_invitee")
+    .select("id", { count: "exact", head: true })
+    .eq("gift_id", gift.id);
+  if (countErr) return res.status(500).json({ error: countErr.message });
+
+  return res.json({
+    ok: true,
+    join: {
+      token: link.token,
+      createdAt: link.created_at,
+      expiresAt: link.expires_at,
+      gift: {
+        id: gift.id,
+        name: gift.name,
+        currency: gift.currency,
+        totalPriceCents: gift.total_price_cents,
+        splitLockedAt: gift.split_locked_at,
+        createdAt: gift.created_at,
+        inviteeCount: inviteeCount ?? 0,
+      },
+    },
+  });
 }
 
 export type LockAndSendResult = {
