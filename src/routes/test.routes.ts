@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { sendCheckoutLink } from "../controllers/test.controller";
-import { getSessionStatus } from "../store/session.store";
 import {
   addInvitees,
   createInvitationLink,
@@ -14,10 +13,17 @@ import {
   respondToJoinInvitation,
 } from "../controllers/gift.controller";
 import { getSessionStatusDb } from "../controllers/sessionStatus.controller";
+import { makeRateLimitMiddleware } from "../middleware/rateLimit.middleware";
+import { env } from "../config/env";
 
 export const testRouter = Router();
+const emailSendRateLimit = makeRateLimitMiddleware({
+  keyPrefix: "email-send",
+  windowMs: env.EMAIL_RATE_LIMIT_WINDOW_MS,
+  max: env.EMAIL_RATE_LIMIT_MAX,
+});
 
-testRouter.post("/send-checkout-link", (req, res) =>
+testRouter.post("/send-checkout-link", emailSendRateLimit, (req, res) =>
   sendCheckoutLink(req, res),
 );
 
@@ -33,5 +39,5 @@ testRouter.get(
 testRouter.get("/join/:token", getJoinGiftByToken);
 testRouter.get("/join/:token/invitee-status", getJoinInviteeStatus);
 testRouter.post("/join/:token/respond", respondToJoinInvitation);
-testRouter.post("/gifts/:giftId/lock-and-send", lockAndSend);
+testRouter.post("/gifts/:giftId/lock-and-send", emailSendRateLimit, lockAndSend);
 testRouter.get("/session-status/:sessionId", getSessionStatusDb);
