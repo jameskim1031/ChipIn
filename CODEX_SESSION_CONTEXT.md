@@ -35,6 +35,7 @@ Priority next tasks:
   - files to change
   - a short summary of exact changes
   - why the change is needed
+- Before each edit, show the exact patch/diff content that will be applied.
 - Wait for my approval every time before applying edits.
 - After edits, summarize exactly what changed and what commands/tests were run.
 - If additional edits are needed, ask for approval again before making them.
@@ -104,6 +105,38 @@ Priority next tasks:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `API_BASE_URL`
+
+## Stripe Webhook Setup Notes (Important)
+- `stripe listen --forward-to localhost:3001/api/stripe/webhook` is local-only.
+  - It does not affect Railway/Vercel.
+  - In deployed environments, Stripe must call Railway directly.
+- For staging, use Stripe test mode in the correct account/workbench (ChipIn sandbox).
+  - Expected pairing:
+    - `STRIPE_SECRET_KEY=sk_test_...`
+    - `STRIPE_WEBHOOK_SECRET=whsec_...` from that same test webhook endpoint
+- Create Stripe webhook destination:
+  1. Developers -> Webhooks -> Add destination
+  2. Destination type: Webhook endpoint
+  3. Scope: `Your account` (not connected accounts)
+  4. URL: `https://chipin-api-staging.up.railway.app/api/stripe/webhook`
+  5. Event: `checkout.session.completed` (required)
+  6. Copy signing secret (`whsec_...`) into Railway `STRIPE_WEBHOOK_SECRET`
+  7. Redeploy/restart backend
+- Suggested naming:
+  - Staging: `chipin-staging-railway-stripe-webhook`
+  - Prod: `chipin-prod-railway-stripe-webhook`
+- Verification after setup:
+  1. Complete a fresh test checkout
+  2. Confirm Stripe delivery is `2xx`
+  3. Confirm DB rows update:
+    - `stripe_checkout_session.status -> paid`
+    - `gift_invitee.status -> paid`
+
+## Stripe Mode Clarification
+- Dashboard view can show Live while your app is still using Test keys.
+- Keep all Stripe pieces aligned by environment:
+  - Staging: test keys + test webhook endpoint/secret
+  - Prod: live keys + live webhook endpoint/secret
 
 ## Deployment/Release Flow (Current Practice)
 1. Build locally (backend + frontend).

@@ -3,3 +3,4 @@ dist/
 .env
 .DS_Store
 web/.next/
+CODEX_SESSION_CONTEXT.md
