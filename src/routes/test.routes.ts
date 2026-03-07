@@ -24,9 +24,11 @@ const emailSendRateLimit = makeRateLimitMiddleware({
   max: env.EMAIL_RATE_LIMIT_MAX,
 });
 
-testRouter.post("/send-checkout-link", emailSendRateLimit, (req, res) =>
-  sendCheckoutLink(req, res),
-);
+if (process.env.NODE_ENV === "development") {
+  testRouter.post("/send-checkout-link", emailSendRateLimit, (req, res) =>
+    sendCheckoutLink(req, res),
+  );
+}
 
 testRouter.post("/gifts", requireAuth, createGift);
 testRouter.get("/gifts", requireAuth, listGifts);
