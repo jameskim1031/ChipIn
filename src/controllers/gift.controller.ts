@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import crypto from "crypto";
 import { supabase } from "../services/supabase.service";
+import { createUserSupabaseClient } from "../services/supabaseUser.service";
 import {
   createCheckoutSession,
   retrieveCheckoutSession,
@@ -16,7 +17,6 @@ import {
   JoinRespondSchema,
   JoinTokenParamsSchema,
 } from "../validators/gift.schemas";
-import { getLatestCheckoutSessionForInvitee } from "../services/checkoutSession.repo";
 import { env } from "../config/env";
 
 function generateInvitationToken() {
@@ -28,16 +28,38 @@ function generateInvitationToken() {
     .replace(/=+$/g, "");
 }
 
+function getAuthedUserDb(req: Request, res: Response) {
+  if (!req.accessToken || !req.authUser?.id) {
+    res.status(401).json({ error: "Missing authenticated user" });
+    return null;
+  }
+  return {
+    db: createUserSupabaseClient(req.accessToken),
+    userId: req.authUser.id,
+  };
+}
+
 export async function createGift(req: Request, res: Response) {
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db, userId } = authCtx;
+
   const parsed = CreateGiftSchema.safeParse(req.body);
   if (!parsed.success)
     return res.status(400).json({ error: parsed.error.flatten() });
 
   const { name, totalPriceCents, currency } = parsed.data;
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("gift")
-    .insert([{ name, currency, total_price_cents: totalPriceCents }])
+    .insert([
+      {
+        name,
+        currency,
+        total_price_cents: totalPriceCents,
+        owner_user_id: userId,
+      },
+    ])
     .select("id")
     .single();
 
@@ -49,7 +71,7 @@ export async function createGift(req: Request, res: Response) {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = generateInvitationToken();
-    const { data: link, error: linkErr } = await supabase
+    const { data: link, error: linkErr } = await db
       .from("gift_invitation_link")
       .insert([{ gift_id: data.id, token, expires_at: expiresAtIso }])
       .select("id,gift_id,token,created_at,expires_at,revoked_at")
@@ -106,7 +128,11 @@ function addToCounts(counts: GiftCounts, status: string) {
 }
 
 export async function listGifts(req: Request, res: Response) {
-  const { data: gifts, error: giftsErr } = await supabase
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db } = authCtx;
+
+  const { data: gifts, error: giftsErr } = await db
     .from("gift")
     .select("id,name,currency,total_price_cents,split_locked_at,created_at")
     .order("created_at", { ascending: false });
@@ -115,7 +141,7 @@ export async function listGifts(req: Request, res: Response) {
   if (!gifts?.length) return res.json({ ok: true, gifts: [] });
 
   const giftIds = gifts.map((g) => g.id);
-  const { data: invitees, error: inviteesErr } = await supabase
+  const { data: invitees, error: inviteesErr } = await db
     .from("gift_invitee")
     .select("gift_id,status,amount_cents")
     .in("gift_id", giftIds);
@@ -171,9 +197,13 @@ export async function listGifts(req: Request, res: Response) {
 }
 
 export async function getGiftById(req: Request, res: Response) {
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db } = authCtx;
+
   const giftId = req.params.giftId;
 
-  const { data: gift, error: giftErr } = await supabase
+  const { data: gift, error: giftErr } = await db
     .from("gift")
     .select("id,name,currency,total_price_cents,split_locked_at,created_at")
     .eq("id", giftId)
@@ -182,7 +212,7 @@ export async function getGiftById(req: Request, res: Response) {
   if (giftErr || !gift)
     return res.status(404).json({ error: "Gift not found" });
 
-  const { data: invitees, error: invErr } = await supabase
+  const { data: invitees, error: invErr } = await db
     .from("gift_invitee")
     .select("id,gift_id,name,email,phone,status,amount_cents,created_at,paid_at")
     .eq("gift_id", giftId)
@@ -243,12 +273,16 @@ export async function getGiftById(req: Request, res: Response) {
 }
 
 export async function addInvitees(req: Request, res: Response) {
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db } = authCtx;
+
   const giftId = req.params.giftId;
   const parsed = AddInviteesSchema.safeParse(req.body);
   if (!parsed.success)
     return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { data: gift, error: giftErr } = await supabase
+  const { data: gift, error: giftErr } = await db
     .from("gift")
     .select("id,split_locked_at")
     .eq("id", giftId)
@@ -266,7 +300,7 @@ export async function addInvitees(req: Request, res: Response) {
     status: "invited",
   }));
 
-  const { data, error } = await supabase
+  const { data, error } = await db
     .from("gift_invitee")
     .insert(rows)
     .select("id,gift_id,email,amount_cents,status,created_at,paid_at");
@@ -276,12 +310,16 @@ export async function addInvitees(req: Request, res: Response) {
 }
 
 export async function createInvitationLink(req: Request, res: Response) {
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db } = authCtx;
+
   const giftId = req.params.giftId;
   const parsed = CreateInvitationLinkSchema.safeParse(req.body ?? {});
   if (!parsed.success)
     return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { data: gift, error: giftErr } = await supabase
+  const { data: gift, error: giftErr } = await db
     .from("gift")
     .select("id")
     .eq("id", giftId)
@@ -303,7 +341,7 @@ export async function createInvitationLink(req: Request, res: Response) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const token = generateInvitationToken();
 
-    const { data: link, error: linkErr } = await supabase
+    const { data: link, error: linkErr } = await db
       .from("gift_invitation_link")
       .insert([{ gift_id: giftId, token, expires_at: expiresAtIso }])
       .select("id,gift_id,token,created_at,expires_at,revoked_at")
@@ -338,10 +376,14 @@ export async function getLatestInvitationLinkForGift(
   req: Request,
   res: Response,
 ) {
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db } = authCtx;
+
   const giftId = req.params.giftId;
   const nowIso = new Date().toISOString();
 
-  const { data: gift, error: giftErr } = await supabase
+  const { data: gift, error: giftErr } = await db
     .from("gift")
     .select("id")
     .eq("id", giftId)
@@ -350,7 +392,7 @@ export async function getLatestInvitationLinkForGift(
   if (giftErr || !gift)
     return res.status(404).json({ error: "Gift not found" });
 
-  const { data: link, error: linkErr } = await supabase
+  const { data: link, error: linkErr } = await db
     .from("gift_invitation_link")
     .select("id,gift_id,token,created_at,expires_at,revoked_at")
     .eq("gift_id", giftId)
@@ -623,9 +665,13 @@ export type LockAndSendResult = {
 };
 
 export async function lockAndSend(req: Request, res: Response) {
+  const authCtx = getAuthedUserDb(req, res);
+  if (!authCtx) return;
+  const { db } = authCtx;
+
   const giftId = req.params.giftId;
 
-  const { data: gift, error: giftErr } = await supabase
+  const { data: gift, error: giftErr } = await db
     .from("gift")
     .select("id,name,currency,total_price_cents,split_locked_at")
     .eq("id", giftId)
@@ -635,7 +681,7 @@ export async function lockAndSend(req: Request, res: Response) {
     return res.status(404).json({ error: "Gift not found" });
 
   if (!gift.split_locked_at) {
-    const { error: lockErr } = await supabase
+    const { error: lockErr } = await db
       .from("gift")
       .update({ split_locked_at: new Date().toISOString() })
       .eq("id", giftId)
@@ -644,7 +690,7 @@ export async function lockAndSend(req: Request, res: Response) {
     if (lockErr) return res.status(500).json({ error: lockErr.message });
   }
 
-  const { data: invitees, error: invErr } = await supabase
+  const { data: invitees, error: invErr } = await db
     .from("gift_invitee")
     .select("id,email,status,amount_cents,created_at")
     .eq("gift_id", giftId)
@@ -659,7 +705,7 @@ export async function lockAndSend(req: Request, res: Response) {
   if (invitees.some((i) => i.amount_cents == null)) {
     const amounts = computeEvenSplit(gift.total_price_cents, invitees.length);
     for (let i = 0; i < invitees.length; i++) {
-      const { error } = await supabase
+      const { error } = await db
         .from("gift_invitee")
         .update({ amount_cents: amounts[i] })
         .eq("id", invitees[i].id);
@@ -667,7 +713,7 @@ export async function lockAndSend(req: Request, res: Response) {
     }
   }
 
-  const { data: assigned, error: assignedErr } = await supabase
+  const { data: assigned, error: assignedErr } = await db
     .from("gift_invitee")
     .select("id,email,status,amount_cents,created_at")
     .eq("gift_id", giftId)
@@ -686,7 +732,14 @@ export async function lockAndSend(req: Request, res: Response) {
       return res.status(500).json({ error: "Invitee amount missing" });
 
     // 1) If there is an existing unpaid session, reuse it (NO email)
-    const existing = await getLatestCheckoutSessionForInvitee(inv.id);
+    const { data: existing, error: existingErr } = await db
+      .from("stripe_checkout_session")
+      .select("stripe_session_id,status,created_at")
+      .eq("invitee_id", inv.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existingErr) return res.status(500).json({ error: existingErr.message });
 
     if (existing && existing.status === "created") {
       const s = await retrieveCheckoutSession(existing.stripe_session_id);
@@ -714,7 +767,7 @@ export async function lockAndSend(req: Request, res: Response) {
     if (!session.url)
       return res.status(500).json({ error: "Stripe session URL missing" });
 
-    const { error: sessErr } = await supabase
+    const { error: sessErr } = await db
       .from("stripe_checkout_session")
       .insert([
         {
@@ -725,7 +778,7 @@ export async function lockAndSend(req: Request, res: Response) {
       ]);
     if (sessErr) return res.status(500).json({ error: sessErr.message });
 
-    const { error: invUpdErr } = await supabase
+    const { error: invUpdErr } = await db
       .from("gift_invitee")
       .update({ status: "checkout_created" })
       .eq("id", inv.id);

@@ -1,11 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
+import { env } from "../config/env";
 
-const url = process.env.SUPABASE_URL;
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!url) throw new Error("Missing SUPABASE_URL");
-if (!serviceKey) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
-
-export const supabase = createClient(url, serviceKey, {
+export const supabase = createClient(
+  env.SUPABASE_URL,
+  env.SUPABASE_SERVICE_ROLE_KEY,
+  {
   auth: { persistSession: false },
-});
+},
+);

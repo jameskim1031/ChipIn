@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { authedFetch } from "../../../lib/authed-fetch";
 
 type CreateGiftResponse = {
   giftId: string;
@@ -31,6 +32,16 @@ export default function NewGiftPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    void authedFetch("/backend/gifts")
+      .then((res) => {
+        if (!res.ok) throw new Error(String(res.status));
+      })
+      .catch(() => {
+        router.replace("/");
+      });
+  }, [router]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -43,7 +54,7 @@ export default function NewGiftPage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/backend/gifts", {
+      const res = await authedFetch("/backend/gifts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

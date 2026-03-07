@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { authedFetch } from "../../../lib/authed-fetch";
+import { getSupabaseBrowserClient } from "../../../lib/supabase-browser";
 
 type GiftDetailPayload = {
   ok: true;
@@ -73,6 +76,7 @@ function titleForStatus(status: string) {
 }
 
 export default function GiftStatusPage({ params }: { params: { giftId: string } }) {
+  const router = useRouter();
   const giftId = params.giftId;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,11 +90,18 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/backend/gifts/${giftId}`);
+      const res = await authedFetch(`/backend/gifts/${giftId}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load gift");
       setData(json as GiftDetailPayload);
     } catch (e) {
+      if (
+        e instanceof Error &&
+        (e.message.includes("Not authenticated") || e.message.includes("401"))
+      ) {
+        router.replace("/");
+        return;
+      }
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -99,7 +110,7 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
 
   async function loadLatestInvitationLink() {
     try {
-      const res = await fetch(`/backend/gifts/${giftId}/invitation-links/latest`);
+      const res = await authedFetch(`/backend/gifts/${giftId}/invitation-links/latest`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to load invitation link");
       const payload = json as LatestInvitationLinkPayload;
@@ -112,7 +123,7 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
   useEffect(() => {
     void loadGift();
     void loadLatestInvitationLink();
-  }, [giftId]);
+  }, [giftId, router]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, GiftDetailPayload["invitees"]>();
@@ -128,7 +139,7 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
     setSending(true);
     setActionMsg(null);
     try {
-      const res = await fetch(`/backend/gifts/${giftId}/lock-and-send`, {
+      const res = await authedFetch(`/backend/gifts/${giftId}/lock-and-send`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
@@ -148,7 +159,7 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
     let urlToCopy = invitationUrl;
     try {
       if (!urlToCopy) {
-        const createRes = await fetch(`/backend/gifts/${giftId}/invitation-links`, {
+        const createRes = await authedFetch(`/backend/gifts/${giftId}/invitation-links`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({}),
@@ -168,6 +179,12 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
     } catch {
       setCopyMsg("Failed to copy invitation URL.");
     }
+  }
+
+  async function onSignOut() {
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.replace("/");
   }
 
   if (loading) {
@@ -201,17 +218,20 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
           <h1 className="title" style={{ marginBottom: 0 }}>
             {data.gift.name}
           </h1>
-          <Link href="/gifts">
-            <button>Back to Gifts</button>
-          </Link>
+          <div className="row">
+            <Link href="/gifts">
+              <button>Back to Gifts</button>
+            </Link>
+            <button onClick={onSignOut}>Sign Out</button>
+          </div>
         </div>
 
         <p className="muted">
-          Total: {formatMoney(data.gift.totalPriceCents, currency)} | Locked:{" "}
+          Total: {formatMoney(data.gift.totalPriceCents, currency)} | Locked: {" "}
           {data.gift.splitLockedAt ? "Yes" : "No"}
         </p>
         <p className="muted">
-          Per-person preview:{" "}
+          Per-person preview: {" "}
           {formatMoney(data.summary.perPersonPreviewCents, currency)}
         </p>
         <p className="muted">
@@ -220,9 +240,9 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
           Remaining: {formatMoney(data.summary.amounts.remainingCents, currency)}
         </p>
         <p className="muted">
-          Invited {data.summary.counts.invited} | Accepted{" "}
+          Invited {data.summary.counts.invited} | Accepted {" "}
           {data.summary.counts.accepted} | Declined {data.summary.counts.declined} |
-          Checkout Created {data.summary.counts.checkoutCreated} | Paid{" "}
+          Checkout Created {data.summary.counts.checkoutCreated} | Paid {" "}
           {data.summary.counts.paid}
         </p>
 
@@ -287,7 +307,7 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
                           {inv.name || "(No name)"} - {inv.email}
                         </div>
                         <div className="muted" style={{ fontSize: 13 }}>
-                          Phone: {inv.phone || "-"} | Amount:{" "}
+                          Phone: {inv.phone || "-"} | Amount: {" "}
                           {formatMoney(inv.amountCents, currency)}
                         </div>
                         <div className="muted" style={{ fontSize: 13 }}>

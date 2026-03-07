@@ -5,6 +5,9 @@ dotenv.config();
 
 const EnvSchema = z.object({
   PORT: z.coerce.number().default(3001),
+  SUPABASE_URL: z.string().url(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  SUPABASE_ANON_KEY: z.string().min(1),
   APP_BASE_URL: z.string().default("http://localhost:3000"),
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),

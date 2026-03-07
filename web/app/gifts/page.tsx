@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { authedFetch } from "../../lib/authed-fetch";
+import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 
 type GiftListPayload = {
   ok: true;
@@ -34,6 +37,7 @@ function formatMoney(cents: number, currency: string) {
 }
 
 export default function GiftsPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<GiftListPayload | null>(null);
@@ -44,11 +48,18 @@ export default function GiftsPage() {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch("/backend/gifts");
+        const res = await authedFetch("/backend/gifts");
         const json = await res.json();
         if (!res.ok) throw new Error(json.error ?? "Failed to load gifts");
         if (mounted) setData(json as GiftListPayload);
       } catch (e) {
+        if (
+          e instanceof Error &&
+          (e.message.includes("Not authenticated") || e.message.includes("401"))
+        ) {
+          router.replace("/");
+          return;
+        }
         if (mounted) setError(e instanceof Error ? e.message : "Unknown error");
       } finally {
         if (mounted) setLoading(false);
@@ -58,7 +69,13 @@ export default function GiftsPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [router]);
+
+  async function onSignOut() {
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    router.replace("/");
+  }
 
   const gifts = useMemo(() => data?.gifts ?? [], [data]);
 
@@ -88,9 +105,12 @@ export default function GiftsPage() {
           <h1 className="title" style={{ marginBottom: 0 }}>
             Gifts
           </h1>
-          <Link href="/gifts/new">
-            <button className="primary">Create New Gift</button>
-          </Link>
+          <div className="row">
+            <Link href="/gifts/new">
+              <button className="primary">Create New Gift</button>
+            </Link>
+            <button onClick={onSignOut}>Sign Out</button>
+          </div>
         </div>
 
         {gifts.length === 0 ? (

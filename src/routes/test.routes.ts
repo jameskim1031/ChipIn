@@ -14,6 +14,7 @@ import {
 } from "../controllers/gift.controller";
 import { getSessionStatusDb } from "../controllers/sessionStatus.controller";
 import { makeRateLimitMiddleware } from "../middleware/rateLimit.middleware";
+import { requireAuth } from "../middleware/auth.middleware";
 import { env } from "../config/env";
 
 export const testRouter = Router();
@@ -27,17 +28,23 @@ testRouter.post("/send-checkout-link", emailSendRateLimit, (req, res) =>
   sendCheckoutLink(req, res),
 );
 
-testRouter.post("/gifts", createGift);
-testRouter.get("/gifts", listGifts);
-testRouter.get("/gifts/:giftId", getGiftById);
-testRouter.post("/gifts/:giftId/invitees", addInvitees);
-testRouter.post("/gifts/:giftId/invitation-links", createInvitationLink);
+testRouter.post("/gifts", requireAuth, createGift);
+testRouter.get("/gifts", requireAuth, listGifts);
+testRouter.get("/gifts/:giftId", requireAuth, getGiftById);
+testRouter.post("/gifts/:giftId/invitees", requireAuth, addInvitees);
+testRouter.post("/gifts/:giftId/invitation-links", requireAuth, createInvitationLink);
 testRouter.get(
   "/gifts/:giftId/invitation-links/latest",
+  requireAuth,
   getLatestInvitationLinkForGift,
 );
 testRouter.get("/join/:token", getJoinGiftByToken);
 testRouter.get("/join/:token/invitee-status", getJoinInviteeStatus);
 testRouter.post("/join/:token/respond", respondToJoinInvitation);
-testRouter.post("/gifts/:giftId/lock-and-send", emailSendRateLimit, lockAndSend);
+testRouter.post(
+  "/gifts/:giftId/lock-and-send",
+  requireAuth,
+  emailSendRateLimit,
+  lockAndSend,
+);
 testRouter.get("/session-status/:sessionId", getSessionStatusDb);
