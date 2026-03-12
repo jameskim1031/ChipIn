@@ -1,14 +1,12 @@
- "use client";
+"use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { getSupabaseBrowserClient } from "../lib/supabase-browser";
 
 export default function HomePage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const router = useRouter();
   const [isAuthed, setIsAuthed] = useState(false);
 
   useEffect(() => {
@@ -20,100 +18,65 @@ export default function HomePage() {
     void loadSession();
   }, []);
 
-  async function onSignIn(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMsg(null);
-    try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (error) throw error;
-      setIsAuthed(true);
-      setMsg("Signed in.");
-    } catch (err: any) {
-      setMsg(err?.message ?? "Sign in failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function onSignUp(e: FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMsg(null);
-    try {
-      const supabase = getSupabaseBrowserClient();
-      const { error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-      });
-      if (error) throw error;
-      setMsg("Check your email to confirm sign-up.");
-    } catch (err: any) {
-      setMsg(err?.message ?? "Sign up failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function onSignOut() {
     const supabase = getSupabaseBrowserClient();
     await supabase.auth.signOut();
     setIsAuthed(false);
-    setMsg("Signed out.");
+    router.replace("/");
   }
 
   return (
-    <main className="container">
-      <div className="card">
-        <h1 className="title">ChipIn</h1>
-        <p className="muted">Sign in to manage gifts.</p>
+    <main className="marketingPage">
+      <div className="marketingNav">
+        <Link href="/" className="brandLink">
+          <span className="brandMark">C</span>
+          <span className="brandWord">ChipIn</span>
+        </Link>
 
-        <form style={{ marginTop: 12 }} onSubmit={onSignIn}>
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-
-          <div className="row">
-            <button className="primary" type="submit" disabled={loading}>
-              {loading ? "Working..." : "Sign In"}
-            </button>
-            <button type="button" onClick={onSignUp} disabled={loading}>
-              Sign Up
-            </button>
-            {isAuthed ? (
-              <button type="button" onClick={onSignOut} disabled={loading}>
-                Sign Out
+        <div className="navActions">
+          {isAuthed ? (
+            <>
+              <Link href="/gifts">
+                <button className="navPrimary" type="button">Go to Gifts</button>
+              </Link>
+              <button className="navGhost" type="button" onClick={onSignOut}>
+                Sign out
               </button>
-            ) : null}
-          </div>
-        </form>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <button className="navGhost" type="button">Log in</button>
+              </Link>
+              <Link href="/signup">
+                <button className="navPrimary" type="button">Sign up</button>
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
 
-        <div className="row">
-          <Link href="/gifts">
-            <button>Go to Gifts</button>
+      <section className="marketingHero">
+        <p className="eyebrow">Group gifts, made easy and memorable</p>
+        <h1>Turn every gift into a shared moment.</h1>
+        <p className="heroBody">
+          Build surprise energy, keep everyone in the loop, and make paying in feel
+          effortless.
+        </p>
+        <div className="marketingMoodRow">
+          <span>Birthday drops</span>
+          <span>Custom surprises</span>
+          <span>Group energy only</span>
+        </div>
+        <div className="heroActions">
+          <Link href="/login">
+            <button className="heroPrimary" type="button">Start a group gift now</button>
+          </Link>
+          <Link href="/signup">
+            <button className="heroSecondary" type="button">Create account</button>
           </Link>
         </div>
-
-        {msg ? <p className="muted">{msg}</p> : null}
-      </div>
+      </section>
     </main>
   );
 }

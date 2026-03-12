@@ -77,57 +77,87 @@ export default function NewGiftPage() {
   }
 
   return (
-    <main className="container">
-      <div className="card">
-        <div className="row" style={{ justifyContent: "space-between", marginTop: 0 }}>
-          <h1 className="title" style={{ marginBottom: 0 }}>
-            Create Gift
-          </h1>
-          <Link href="/gifts">
-            <button>Back to Gifts</button>
-          </Link>
-        </div>
-
-        <form onSubmit={onSubmit} style={{ marginTop: 12 }}>
-          <label htmlFor="name">Gift Name</label>
-          <input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="James Birthday Gift"
-            required
-          />
-
-          <label htmlFor="totalPrice">Total Price (USD)</label>
-          <input
-            id="totalPrice"
-            type="number"
-            step="0.01"
-            min="0.01"
-            value={totalPrice}
-            onChange={(e) => setTotalPrice(e.target.value)}
-            placeholder="120.00"
-            required
-          />
-
-          <label htmlFor="currency">Currency</label>
-          <input
-            id="currency"
-            value={currency}
-            onChange={(e) => setCurrency(e.target.value)}
-            placeholder="usd"
-            required
-          />
-
-          <div className="row">
-            <button className="primary" type="submit" disabled={submitting}>
-              {submitting ? "Creating..." : "Create Gift"}
-            </button>
-          </div>
-        </form>
-
-        {error && <p className="error">{error}</p>}
+    <main className="giftsPage">
+      <div className="marketingNav">
+        <Link href="/" className="brandLink">
+          <span className="brandMark">C</span>
+          <span className="brandWord">ChipIn</span>
+        </Link>
+        <Link href="/gifts">
+          <button className="navGhost" type="button">Back to gifts</button>
+        </Link>
       </div>
+
+      <section className="giftsShell">
+        <header className="giftsHeader">
+          <p className="giftsEyebrow">New gift</p>
+          <h1 className="giftsPageTitle">Start a new gift drop.</h1>
+          <p className="giftsSubtitle">
+            Name the moment, set the total, and share it with your people.
+          </p>
+        </header>
+
+        <section className="newGiftPanel">
+          <form onSubmit={onSubmit} className="newGiftForm">
+            <label htmlFor="name">Gift Name</label>
+            <input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="James Birthday Gift"
+              required
+            />
+
+            <div className="newGiftRow">
+              <div className="newGiftField">
+                <label htmlFor="totalPrice">Total Price (USD)</label>
+                <input
+                  id="totalPrice"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={totalPrice}
+                  onChange={(e) => setTotalPrice(e.target.value)}
+                  placeholder="120.00"
+                  required
+                />
+              </div>
+              <div className="newGiftField">
+                <label htmlFor="currency">Currency</label>
+                <input
+                  id="currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  placeholder="usd"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="newGiftUpload">
+              <label htmlFor="giftImage">Gift image (optional)</label>
+              <input id="giftImage" type="file" accept="image/*" />
+              <p className="newGiftUploadHint">
+                Image upload is preview-only for now (not saved yet).
+              </p>
+            </div>
+
+            <div className="newGiftActions">
+              <button
+                className="giftsHeaderActionButton newGiftPrimary"
+                type="submit"
+                disabled={submitting}
+              >
+                {submitting ? "Creating..." : "Create gift"}
+              </button>
+              <Link href="/gifts">
+                <button className="giftsHeaderActionButton" type="button">Cancel</button>
+              </Link>
+            </div>
+          </form>
+          {error ? <p className="error">{error}</p> : null}
+        </section>
+      </section>
     </main>
   );
 }
