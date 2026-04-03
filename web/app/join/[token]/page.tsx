@@ -35,6 +35,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<JoinPayload | null>(null);
   const [decision, setDecision] = useState<"yes" | "no" | null>(null);
+  const [submittedDecision, setSubmittedDecision] = useState<"yes" | "no" | null>(null);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [checkingExisting, setCheckingExisting] = useState(false);
@@ -97,9 +98,7 @@ export default function JoinPage({ params }: { params: { token: string } }) {
         if (mounted && json?.inviteeStatus?.exists) {
           const status = invitee?.status ?? "unknown";
           setAlreadySubmitted(true);
-          setExistingStatusMsg(
-            `This email already submitted a response (${status}).`,
-          );
+          setExistingStatusMsg(`This email already submitted a response (${status}).`);
         }
       } catch (e) {
         if (mounted) {
@@ -148,9 +147,8 @@ export default function JoinPage({ params }: { params: { token: string } }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to submit");
-      setSubmitMsg(
-        decision === "yes" ? "Thanks, you are in." : "Thanks, response saved.",
-      );
+      setSubmittedDecision(decision);
+      setSubmitMsg(decision === "yes" ? "Thanks, you are in." : "Thanks, response saved.");
     } catch (e) {
       setSubmitMsg(e instanceof Error ? e.message : "Failed to submit");
     } finally {
@@ -160,96 +158,154 @@ export default function JoinPage({ params }: { params: { token: string } }) {
 
   if (loading) {
     return (
-      <main className="container">
-        <div className="card">Loading invitation...</div>
+      <main className="figmaJoinShell">
+        <div className="figmaJoinCard figmaLoadingState">
+          <div className="figmaLoadingDots" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+          <p className="figmaLoadingLabel">Loading</p>
+        </div>
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="container">
-        <div className="card">
-          <h1 className="title">Invitation unavailable</h1>
-          <p className="error">{error ?? "Invalid invitation"}</p>
+      <main className="figmaJoinShell">
+        <div className="figmaJoinCard">
+          <h1>Invitation unavailable</h1>
+          <p className="figmaMessageError">{error ?? "Invalid invitation"}</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="container">
-      <div className="card">
-        <h1 className="title">{data.join.gift.name}</h1>
-        <p className="muted">Total gift amount: {total}</p>
-        <p className="muted">Current participants: {data.join.gift.inviteeCount}</p>
-        {checkingExisting && <p className="muted">Checking existing response...</p>}
-        {existingStatusMsg && (
-          <p className={alreadySubmitted ? "error" : "muted"}>{existingStatusMsg}</p>
-        )}
-
-        {!decision && !alreadySubmitted && (
-          <div className="row">
-            <button className="primary" onClick={() => setDecision("yes")}>
-              Yes, I want to join
-            </button>
-            <button onClick={() => setDecision("no")} disabled={submitting}>
-              No, thanks
-            </button>
-          </div>
-        )}
-
-        {decision && !alreadySubmitted && (
-          <form onSubmit={onSubmitResponse}>
-            <p className="muted">
-              {decision === "yes"
-                ? "Fill this out to join."
-                : "Fill this out to decline."}
-            </p>
-            <label htmlFor="name">Name</label>
-            <input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-
-            <label htmlFor="phone">Phone</label>
-            <input
-              id="phone"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              required
-            />
-
-            <div className="row">
-              <button className="primary" type="submit" disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setDecision(null)}
-                disabled={submitting}
-              >
-                Back
-              </button>
+    <main className="figmaJoinShell">
+      <div className="figmaJoinCard">
+        {submittedDecision ? (
+          <div className="figmaSuccessPanel figmaJoinSuccessPanel">
+            <div className="figmaJoinConfetti" aria-hidden="true">
+              <span className="figmaJoinConfettiPiece figmaJoinConfettiPink" />
+              <span className="figmaJoinConfettiPiece figmaJoinConfettiPurple" />
+              <span className="figmaJoinConfettiPiece figmaJoinConfettiBlue" />
+              <span className="figmaJoinConfettiPiece figmaJoinConfettiGold" />
+              <span className="figmaJoinConfettiPiece figmaJoinConfettiPink" />
+              <span className="figmaJoinConfettiPiece figmaJoinConfettiBlue" />
             </div>
-          </form>
-        )}
+            <div className="figmaAuthLogo">C</div>
+            <p className="figmaDashboardKicker">
+              {submittedDecision === "yes" ? "You joined" : "Response saved"}
+            </p>
+            <h2>
+              {submittedDecision === "yes"
+                ? "Congrats, you’re in"
+                : "Thanks for letting the host know"}
+            </h2>
+            <p>
+              {submittedDecision === "yes"
+                ? "Your host will follow up soon with the next details."
+                : "Your response has been recorded. The host will follow up soon if needed."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="figmaJoinHeader">
+              <div className="figmaAuthLogo">C</div>
+              <p className="figmaDashboardKicker">You&apos;re invited</p>
+              <h1>{data.join.gift.name}</h1>
+              <p>
+                Join the group gift, or let the organizer know you&apos;re passing this time.
+              </p>
+            </div>
 
-        {submitMsg && (
-          <p className={submitMsg.toLowerCase().includes("thanks") ? "success" : "error"}>
-            {submitMsg}
-          </p>
+            <div className="figmaJoinStats">
+              <div className="figmaJoinStat">
+                <span>Total gift amount</span>
+                <strong>{total}</strong>
+              </div>
+              <div className="figmaJoinStat">
+                <span>Current participants</span>
+                <strong>{data.join.gift.inviteeCount}</strong>
+              </div>
+            </div>
+
+            {checkingExisting ? <p className="figmaMessageInfo">Checking existing response...</p> : null}
+            {existingStatusMsg ? (
+              <p className={alreadySubmitted ? "figmaMessageError" : "figmaMessageInfo"}>
+                {existingStatusMsg}
+              </p>
+            ) : null}
+
+            {!decision && !alreadySubmitted ? (
+              <div className="figmaJoinDecisionRow figmaJoinDecisionStack">
+                <button className="figmaPrimaryButton" onClick={() => setDecision("yes")}>
+                  Yes, I want to join
+                </button>
+                <button className="figmaGhostButton" onClick={() => setDecision("no")} disabled={submitting}>
+                  No, thanks
+                </button>
+              </div>
+            ) : null}
+
+            {decision && !alreadySubmitted ? (
+              <form onSubmit={onSubmitResponse} className="figmaJoinForm">
+                <p className="figmaGiftSummary">
+                  {decision === "yes" ? "Fill this out to join." : "Fill this out to decline."}
+                </p>
+
+                <label htmlFor="name">Name</label>
+                <input
+                  className="figmaInput"
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+
+                <label htmlFor="email">Email</label>
+                <input
+                  className="figmaInput"
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+
+                <label htmlFor="phone">Phone</label>
+                <input
+                  className="figmaInput"
+                  id="phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                />
+
+                <div className="figmaJoinDecisionRow">
+                  <button className="figmaPrimaryButton" type="submit" disabled={submitting}>
+                    {submitting ? "Submitting..." : "Submit"}
+                  </button>
+                  <button
+                    className="figmaGhostButton"
+                    type="button"
+                    onClick={() => setDecision(null)}
+                    disabled={submitting}
+                  >
+                    Back
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {submitMsg ? (
+              <p className={submitMsg.toLowerCase().includes("thanks") ? "figmaMessageInfo" : "figmaMessageError"}>
+                {submitMsg}
+              </p>
+            ) : null}
+          </>
         )}
       </div>
     </main>

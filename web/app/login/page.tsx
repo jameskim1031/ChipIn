@@ -54,23 +54,22 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="authPage">
-      <div className="authPanel">
-        <div className="topNav">
-          <Link href="/">
-            <button type="button" className="backIconButton" aria-label="Back to home">
-              ←
-            </button>
-          </Link>
+    <main className="figmaAuthShell">
+      <div className="figmaAuthCard">
+        <Link href="/" className="figmaBackLink">
+          ← Back to home
+        </Link>
+
+        <div className="figmaAuthHeader">
+          <div className="figmaAuthLogo">C</div>
+          <h1>Welcome back</h1>
+          <p>Log in to manage your gifts, participants, and payment progress.</p>
         </div>
 
-        <h1 className="authTitle">Log in</h1>
-        <p className="authKicker">Jump back into the party plan.</p>
-        <p className="authSubtitle">Your group gifts are waiting.</p>
-
-        <form style={{ marginTop: 12 }} onSubmit={step === "email" ? onContinueEmail : onLogin}>
+        <form className="figmaAuthForm" onSubmit={step === "email" ? onContinueEmail : onLogin}>
           <label htmlFor="email">Email</label>
           <input
+            className="figmaInput"
             id="email"
             type="email"
             value={email}
@@ -82,6 +81,7 @@ export default function LoginPage() {
             <>
               <label htmlFor="password">Password</label>
               <input
+                className="figmaInput"
                 id="password"
                 type="password"
                 value={password}
@@ -91,21 +91,28 @@ export default function LoginPage() {
             </>
           ) : null}
 
-          <div className="authActions">
-            <button className="primary" type="submit" disabled={loading}>
+          <div className="figmaAuthActions">
+            <button className="figmaPrimaryButton figmaWideButton" type="submit" disabled={loading}>
               {loading ? "Working..." : step === "email" ? "Continue" : "Log In"}
             </button>
             {step === "email" ? (
-              <div className="authAltAction">
-                <p className="authAltLabel">or</p>
+              <div className="figmaAltAction">
+                <p className="figmaAltLabel">or</p>
                 <Link href="/signup">
-                  <button type="button">Sign up</button>
+                  <button className="figmaGhostButton figmaWideButton" type="button">
+                    Create account
+                  </button>
                 </Link>
               </div>
             ) : (
-              <div className="authAltAction">
-                <p className="authAltLabel">or</p>
-                <button type="button" onClick={() => setStep("email")} disabled={loading}>
+              <div className="figmaAltAction">
+                <p className="figmaAltLabel">or</p>
+                <button
+                  className="figmaGhostButton figmaWideButton"
+                  type="button"
+                  onClick={() => setStep("email")}
+                  disabled={loading}
+                >
                   Change email
                 </button>
               </div>
@@ -113,7 +120,7 @@ export default function LoginPage() {
           </div>
         </form>
 
-        {msg ? <p className="error">{msg}</p> : null}
+        {msg ? <p className="figmaMessageError">{msg}</p> : null}
       </div>
     </main>
   );

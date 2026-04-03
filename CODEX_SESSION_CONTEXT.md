@@ -1,48 +1,67 @@
 # ChipIn Codex Session Context
 
-Updated: 2026-03-11 (end-of-day)
+Updated: 2026-04-02
 
-## Session Update (March 11, 2026)
-- Main landing auth-nav behavior:
-  - Added signed-in `Sign out` action on `/` (in addition to `Go to Gifts`).
-- Built an isolated design playground route:
-  - Added `/design-lab` with 3 concept explorations.
-  - Iterated Concept C into preferred direction:
-    - Neon/fun visual language (A-like palette),
-    - left-column gifts toggle (`Upcoming gifts` / `Past gifts`),
-    - persistent right-column `Events`,
-    - image-aware card treatment using placeholder gradients.
-- Applied Concept C direction to real product routes:
-  - `/gifts` now uses the creative two-column board/timeline structure.
-  - Left side: toggle-controlled gift list with timeline card UI + placeholder image blocks.
-  - Right side: persistent events column with action affordance.
-  - Header now greets authenticated user by name:
-    - uses `user_metadata.full_name` first,
-    - falls back to email local-part,
-    - fallback `"there"` if unavailable.
-- Refined `/gifts` interaction/layout polish:
-  - Moved toggle row above bordered cards as requested.
-  - Removed duplicate labels and removed wrapper border around toggle container.
-  - Updated hero copy and reduced overly “corporate” tone across page.
-- Extended the same playful visual language across onboarding + creation routes:
-  - `/` landing hero copy and styling refreshed to match the new aesthetic.
-  - `/login` and `/signup` updated with expressive headings/kickers and matching style treatment.
-  - `/gifts/new` redesigned to match the new shell and visual system.
-- `/gifts/new` UX cleanup:
-  - Removed decorative bubble chips.
-  - Improved field readability/contrast.
-  - Tightened panel/form width to remove excessive empty space.
-  - Added non-functional image upload input (`accept="image/*"`) with “preview-only” helper note.
+## Session Update (April 2, 2026)
+- Read and used the downloaded Figma export at `/Users/jameskim/Desktop/figma` as the primary UI reference.
+- Replaced the prior dark/neon visual direction with a light Figma-style pastel redesign across the main product routes.
+- Updated these frontend pages to align much more closely with the mock while preserving existing functionality:
+  - `/`
+  - `/login`
+  - `/signup`
+  - `/gifts`
+  - `/gifts/new`
+  - `/gifts/[giftId]`
+  - `/join/[token]`
+- Global styling shift:
+  - moved to white cards, pastel pink/purple/blue gradients, softer borders, lighter shadows, and cleaner rounded SaaS-like layout treatment.
+  - shared visual system lives primarily in `web/app/globals.css`.
+- Landing page notes:
+  - uses a full-width sticky white/translucent nav with centered inner content.
+  - hero and section backgrounds were iterated to better match the mock:
+    - pastel gradient as the main page atmosphere,
+    - white override band for `How it works`,
+    - alternating section treatment below.
+  - `How it works` button scrolls to the section below and now accounts for the sticky nav.
+  - `How it works` cards were adjusted to follow the mock more literally, especially icon + step-badge layout.
+  - hero proof row now uses plain green checkmarks without white pill backgrounds.
+  - testimonial marquee added in the lower hero area to use negative space.
+- Auth page notes:
+  - `/login` and `/signup` were rebuilt around the mock’s centered white card composition on a pastel background.
+  - `/signup` keeps ChipIn-specific fields that do not exist in the mock:
+    - name
+    - birthday
+  - auth button alignment and full-width action stacking were corrected.
+  - signup page height/padding/logo scale were reduced to avoid unnecessary scrolling.
+- Dashboard notes:
+  - `/gifts` now uses the same full-width nav pattern and pastel page background family as the landing/auth screens.
+- Create gift notes:
+  - `/gifts/new` was reworked to much more closely mirror the mock’s create page composition.
+  - restored icons using `lucide-react`.
+  - added mock-style UI for:
+    - emoji vs custom image selection
+    - birthday/event date
+    - payment deadline
+    - `What happens next?` panel
+  - these extra create fields are currently UI-only and are not yet submitted to the backend create payload.
+  - create page was later scaled down to better match the mock:
+    - smaller header/title sizing
+    - narrower container/card width
+    - tighter form spacing
+  - bottom `Cancel` action was simplified from a full secondary button to a quiet text link under the primary CTA.
+- Dependency note:
+  - installed `lucide-react` in `web/` to support mock-style icons.
+  - `web/package.json` and `web/package-lock.json` changed accordingly.
 - Build status:
-  - Frontend build passes after all styling/layout updates (`cd web && npm run build`).
+  - frontend build passes after the redesign iterations (`cd web && npm run build`).
 
 ## Current UI Direction (Active)
-- Product visual direction is now intentionally playful/creative:
-  - high-energy neon accents,
-  - sticker-like button shapes,
-  - mixed dashed/glass card textures,
-  - expressive hero typography,
-  - timeline/event board framing for gift management.
+- Product visual direction is now based on the downloaded Figma mock:
+  - light, airy pastel gradients,
+  - white rounded cards,
+  - full-width sticky nav bars with centered inner containers,
+  - cleaner SaaS/product layout composition,
+  - lighter typography and less decorative chrome than the prior neon direction.
 
 ## Session Update (March 9, 2026)
 - Split onboarding into separate routes:
@@ -113,6 +132,18 @@ Priority next tasks:
 - Wait for my approval every time before applying edits.
 - After edits, summarize exactly what changed and what commands/tests were run.
 - If additional edits are needed, ask for approval again before making them.
+
+## Current Modified Files (UI Redesign Worktree)
+- `web/app/page.tsx`
+- `web/app/login/page.tsx`
+- `web/app/signup/page.tsx`
+- `web/app/gifts/page.tsx`
+- `web/app/gifts/new/page.tsx`
+- `web/app/gifts/[giftId]/page.tsx`
+- `web/app/join/[token]/page.tsx`
+- `web/app/globals.css`
+- `web/package.json`
+- `web/package-lock.json`
 
 ## Project Snapshot
 - Monorepo:

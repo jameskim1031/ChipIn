@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { Send } from "lucide-react";
 import { authedFetch } from "../../../lib/authed-fetch";
 import { getSupabaseBrowserClient } from "../../../lib/supabase-browser";
 
@@ -73,6 +74,21 @@ function titleForStatus(status: string) {
   if (status === "expired") return "Expired";
   if (status === "canceled") return "Canceled";
   return status;
+}
+
+function participantStatusLabel(status: string, splitLockedAt: string | null) {
+  if (status === "declined") return "Declined";
+  if (status === "canceled") return "Canceled";
+  if (status === "expired") return "Expired";
+  if (!splitLockedAt) return "Accepted";
+  return status === "paid" ? "Paid" : "Not paid";
+}
+
+function formatDateTime(value: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString();
 }
 
 export default function GiftStatusPage({ params }: { params: { giftId: string } }) {
@@ -165,8 +181,9 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
           body: JSON.stringify({}),
         });
         const createJson = await createRes.json();
-        if (!createRes.ok)
+        if (!createRes.ok) {
           throw new Error(createJson.error ?? "Failed to create invitation link");
+        }
 
         const createdUrl = createJson?.invitationLink?.url;
         if (!createdUrl) throw new Error("Invitation link URL missing");
@@ -189,139 +206,262 @@ export default function GiftStatusPage({ params }: { params: { giftId: string } 
 
   if (loading) {
     return (
-      <main className="container">
-        <div className="card">Loading gift status...</div>
+      <main className="figmaDashboardShell">
+        <section className="figmaDetailWrap">
+          <div className="figmaLoadingCard figmaLoadingState">
+            <div className="figmaLoadingDots" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <p className="figmaLoadingLabel">Loading</p>
+          </div>
+        </section>
       </main>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="container">
-        <div className="card">
-          <h1 className="title">Gift Status</h1>
-          <p className="error">{error ?? "Failed to load gift"}</p>
-          <Link href="/gifts">
-            <button>Back to Gifts</button>
-          </Link>
-        </div>
+      <main className="figmaDashboardShell">
+        <section className="figmaDetailWrap">
+          <div className="figmaLoadingCard">
+            <h1>Gift Status</h1>
+            <p className="figmaMessageError">{error ?? "Failed to load gift"}</p>
+            <Link href="/gifts">
+              <button className="figmaGhostButton" type="button">
+                Back to Gifts
+              </button>
+            </Link>
+          </div>
+        </section>
       </main>
     );
   }
 
   const currency = data.gift.currency;
+  const progress = data.summary.counts.invited
+    ? Math.min(100, Math.round((data.summary.counts.paid / data.summary.counts.invited) * 100))
+    : 0;
+  const unpaidCount = data.gift.splitLockedAt
+    ? data.invitees.filter(
+        (inv) =>
+          inv.status !== "paid" &&
+          inv.status !== "declined" &&
+          inv.status !== "canceled" &&
+          inv.status !== "expired",
+      ).length
+    : 0;
 
   return (
-    <main className="container">
-      <div className="card">
-        <div className="row" style={{ justifyContent: "space-between", marginTop: 0 }}>
-          <h1 className="title" style={{ marginBottom: 0 }}>
-            {data.gift.name}
-          </h1>
-          <div className="row">
+    <main className="figmaDashboardShell">
+      <div className="figmaFullBleedNav">
+        <nav className="figmaNav">
+          <Link href="/" className="figmaBrand">
+            <span className="figmaBrandMark">C</span>
+            <span className="figmaBrandWord">ChipIn</span>
+          </Link>
+          <div className="figmaNavActions">
             <Link href="/gifts">
-              <button>Back to Gifts</button>
+              <button className="figmaGhostButton" type="button">
+                Back to Gifts
+              </button>
             </Link>
-            <button onClick={onSignOut}>Sign Out</button>
+            <button className="figmaGhostButton" type="button" onClick={onSignOut}>
+              Sign out
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      <section className="figmaDetailWrap">
+        <header className="figmaDetailHeader">
+          <div>
+            <p className="figmaDashboardKicker">Gift management</p>
+            <h1>{data.gift.name}</h1>
+            <p>
+              Manage the invitation link, monitor payment progress, and review each
+              participant response in one place.
+            </p>
+          </div>
+        </header>
+
+        <div className="figmaDetailStats">
+          <div className="figmaStatCard">
+            <span>Total Amount</span>
+            <strong>{formatMoney(data.gift.totalPriceCents, currency)}</strong>
+          </div>
+          <div className="figmaStatCard">
+            <span>Per Person</span>
+            <strong>{formatMoney(data.summary.perPersonPreviewCents, currency)}</strong>
+          </div>
+          <div className="figmaStatCard">
+            <span>Status</span>
+            <strong>{data.gift.splitLockedAt ? "Locked" : "Open"}</strong>
           </div>
         </div>
 
-        <p className="muted">
-          Total: {formatMoney(data.gift.totalPriceCents, currency)} | Locked: {" "}
-          {data.gift.splitLockedAt ? "Yes" : "No"}
-        </p>
-        <p className="muted">
-          Per-person preview: {" "}
-          {formatMoney(data.summary.perPersonPreviewCents, currency)}
-        </p>
-        <p className="muted">
-          Assigned: {formatMoney(data.summary.amounts.assignedTotalCents, currency)} |
-          Paid: {formatMoney(data.summary.amounts.paidTotalCents, currency)} |
-          Remaining: {formatMoney(data.summary.amounts.remainingCents, currency)}
-        </p>
-        <p className="muted">
-          Invited {data.summary.counts.invited} | Accepted {" "}
-          {data.summary.counts.accepted} | Declined {data.summary.counts.declined} |
-          Checkout Created {data.summary.counts.checkoutCreated} | Paid {" "}
-          {data.summary.counts.paid}
-        </p>
+        <div className="figmaDetailGrid">
+          <section className="figmaDetailMainCard">
+            <div className="figmaDetailSectionTop">
+              <div>
+                <p className="figmaGiftLabel">Payment progress</p>
+                <h2>
+                  {data.summary.counts.paid}/{data.summary.counts.invited} paid
+                </h2>
+              </div>
+              <button
+                className="figmaGhostButton"
+                type="button"
+                onClick={() => {
+                  void loadGift();
+                  void loadLatestInvitationLink();
+                }}
+                disabled={loading || sending}
+              >
+                Refresh
+              </button>
+            </div>
 
-        <div className="row">
-          <button onClick={onCopyLink}>Copy Join URL</button>
-        </div>
-        {copyMsg && (
-          <p className={copyMsg.toLowerCase().includes("copied") ? "success" : "error"}>
-            {copyMsg}
-          </p>
-        )}
+            <div className="figmaProgressTrack figmaDetailProgress">
+              <div className="figmaProgressFill" style={{ width: `${progress}%` }} />
+            </div>
 
-        <div className="row">
-          <button className="primary" onClick={onLockAndSend} disabled={sending}>
-            {sending ? "Locking..." : "Lock and Send"}
-          </button>
-          <button
-            onClick={() => {
-              void loadGift();
-              void loadLatestInvitationLink();
-            }}
-            disabled={loading || sending}
-          >
-            Refresh
-          </button>
-        </div>
+            <div className="figmaDetailMetaGrid">
+              <div>
+                <span>Assigned</span>
+                <strong>{formatMoney(data.summary.amounts.assignedTotalCents, currency)}</strong>
+              </div>
+              <div>
+                <span>Paid</span>
+                <strong>{formatMoney(data.summary.amounts.paidTotalCents, currency)}</strong>
+              </div>
+              <div>
+                <span>Remaining</span>
+                <strong>{formatMoney(data.summary.amounts.remainingCents, currency)}</strong>
+              </div>
+            </div>
 
-        {actionMsg && (
-          <p className={actionMsg.toLowerCase().includes("complete") ? "success" : "error"}>
-            {actionMsg}
-          </p>
-        )}
-
-        <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
-          {(Array.from(grouped.keys()).length ? Array.from(grouped.keys()) : ["none"]).map(
-            (status) => {
-              if (status === "none") {
-                return (
-                  <div key="none" className="card" style={{ padding: 14 }}>
-                    <p className="muted">No invitees yet.</p>
-                  </div>
-                );
-              }
-
-              const invitees = grouped.get(status) ?? [];
-              return (
-                <div key={status} className="card" style={{ padding: 14 }}>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>
-                    {titleForStatus(status)} ({invitees.length})
-                  </h3>
-                  <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-                    {invitees.map((inv) => (
-                      <div
-                        key={inv.id}
-                        style={{
-                          border: "1px solid #e5e7eb",
-                          borderRadius: 8,
-                          padding: 10,
-                        }}
-                      >
-                        <div style={{ fontSize: 14, fontWeight: 600 }}>
-                          {inv.name || "(No name)"} - {inv.email}
-                        </div>
-                        <div className="muted" style={{ fontSize: 13 }}>
-                          Phone: {inv.phone || "-"} | Amount: {" "}
-                          {formatMoney(inv.amountCents, currency)}
-                        </div>
-                        <div className="muted" style={{ fontSize: 13 }}>
-                          Paid At: {inv.paidAt ? new Date(inv.paidAt).toLocaleString() : "-"}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+            <div className="figmaLinkCard">
+              <p className="figmaGiftLabel">Share this link</p>
+              <div className="figmaLinkRow">
+                <div className="figmaLinkValue">
+                  {invitationUrl || "Generate or copy the latest invitation link."}
                 </div>
-              );
-            },
-          )}
+                <button className="figmaGhostButton" type="button" onClick={onCopyLink}>
+                  Copy
+                </button>
+              </div>
+            </div>
+
+            {!data.gift.splitLockedAt ? (
+              <div className="figmaDetailActionCard">
+                <p className="figmaGiftSummary">
+                  When you&apos;re ready, lock the split and send payment links to everyone.
+                </p>
+                <button
+                  className="figmaPrimaryButton figmaWideButton"
+                  type="button"
+                  onClick={onLockAndSend}
+                  disabled={sending}
+                >
+                  {sending ? "Locking..." : "Lock and Send"}
+                </button>
+              </div>
+            ) : null}
+
+            {copyMsg ? (
+              <p className={copyMsg.toLowerCase().includes("copied") ? "figmaMessageInfo" : "figmaMessageError"}>
+                {copyMsg}
+              </p>
+            ) : null}
+            {actionMsg ? (
+              <p className={actionMsg.toLowerCase().includes("complete") ? "figmaMessageInfo" : "figmaMessageError"}>
+                {actionMsg}
+              </p>
+            ) : null}
+          </section>
+
+          <aside className="figmaDetailSideCard">
+            <h2>Summary</h2>
+            <div className="figmaSummaryList">
+              <div><span>Invited</span><strong>{data.summary.counts.invited}</strong></div>
+              <div><span>Accepted</span><strong>{data.summary.counts.accepted}</strong></div>
+              <div><span>Declined</span><strong>{data.summary.counts.declined}</strong></div>
+              <div><span>Checkout Created</span><strong>{data.summary.counts.checkoutCreated}</strong></div>
+              <div><span>Paid</span><strong>{data.summary.counts.paid}</strong></div>
+            </div>
+          </aside>
         </div>
-      </div>
+
+        {data.gift.splitLockedAt && unpaidCount > 0 ? (
+          <section className="figmaReminderCard">
+            <div>
+              <h2>
+                {unpaidCount} {unpaidCount === 1 ? "person hasn't" : "people haven't"} paid yet
+              </h2>
+              <p>Send a friendly reminder to help them remember</p>
+            </div>
+            <button
+              className="figmaReminderButton"
+              type="button"
+              onClick={() => setActionMsg("Reminder sending isn't wired up yet.")}
+            >
+              <Send size={16} />
+              Send Reminders
+            </button>
+          </section>
+        ) : null}
+
+        <section className="figmaInviteeSections">
+          <div className="figmaInviteeGroup">
+            <div className="figmaDetailSectionTop">
+              <div>
+                <p className="figmaGiftLabel">Participants</p>
+                <h2>{data.invitees.length} participant{data.invitees.length === 1 ? "" : "s"}</h2>
+              </div>
+            </div>
+
+            {data.invitees.length ? (
+              <div className="figmaInviteeList">
+                {data.invitees.map((inv) => (
+                  <article key={inv.id} className="figmaInviteeRow">
+                    <div className="figmaInviteeAvatar">
+                      {(inv.name || inv.email || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="figmaInviteeContent">
+                      <p className="figmaInviteeName">{inv.name || "(No name)"}</p>
+                      <p className="figmaInviteeEmail">{inv.email}</p>
+                      <p className="figmaInviteePhone">{inv.phone || "-"}</p>
+                    </div>
+                    <div className="figmaInviteeStatusWrap">
+                      <span className="figmaInviteeStatusBadge">
+                        {participantStatusLabel(inv.status, data.gift.splitLockedAt)}
+                      </span>
+                      {data.gift.splitLockedAt &&
+                      inv.status !== "paid" &&
+                      inv.status !== "declined" &&
+                      inv.status !== "canceled" &&
+                      inv.status !== "expired" ? (
+                        <button
+                          className="figmaInviteeReminderButton"
+                          type="button"
+                          onClick={() => setActionMsg(`Reminder for ${inv.email} isn't wired up yet.`)}
+                        >
+                          <Send size={14} />
+                          Remind
+                        </button>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="figmaGiftSummary">Share the invitation link to start collecting responses.</p>
+            )}
+          </div>
+        </section>
+      </section>
     </main>
   );
 }
