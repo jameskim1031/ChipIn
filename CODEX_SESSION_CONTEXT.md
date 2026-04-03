@@ -1,6 +1,97 @@
 # ChipIn Codex Session Context
 
-Updated: 2026-03-07
+Updated: 2026-04-02
+
+## Session Update (April 2, 2026)
+- Read and used the downloaded Figma export at `/Users/jameskim/Desktop/figma` as the primary UI reference.
+- Replaced the prior dark/neon visual direction with a light Figma-style pastel redesign across the main product routes.
+- Updated these frontend pages to align much more closely with the mock while preserving existing functionality:
+  - `/`
+  - `/login`
+  - `/signup`
+  - `/gifts`
+  - `/gifts/new`
+  - `/gifts/[giftId]`
+  - `/join/[token]`
+- Global styling shift:
+  - moved to white cards, pastel pink/purple/blue gradients, softer borders, lighter shadows, and cleaner rounded SaaS-like layout treatment.
+  - shared visual system lives primarily in `web/app/globals.css`.
+- Landing page notes:
+  - uses a full-width sticky white/translucent nav with centered inner content.
+  - hero and section backgrounds were iterated to better match the mock:
+    - pastel gradient as the main page atmosphere,
+    - white override band for `How it works`,
+    - alternating section treatment below.
+  - `How it works` button scrolls to the section below and now accounts for the sticky nav.
+  - `How it works` cards were adjusted to follow the mock more literally, especially icon + step-badge layout.
+  - hero proof row now uses plain green checkmarks without white pill backgrounds.
+  - testimonial marquee added in the lower hero area to use negative space.
+- Auth page notes:
+  - `/login` and `/signup` were rebuilt around the mock’s centered white card composition on a pastel background.
+  - `/signup` keeps ChipIn-specific fields that do not exist in the mock:
+    - name
+    - birthday
+  - auth button alignment and full-width action stacking were corrected.
+  - signup page height/padding/logo scale were reduced to avoid unnecessary scrolling.
+- Dashboard notes:
+  - `/gifts` now uses the same full-width nav pattern and pastel page background family as the landing/auth screens.
+- Create gift notes:
+  - `/gifts/new` was reworked to much more closely mirror the mock’s create page composition.
+  - restored icons using `lucide-react`.
+  - added mock-style UI for:
+    - emoji vs custom image selection
+    - birthday/event date
+    - payment deadline
+    - `What happens next?` panel
+  - these extra create fields are currently UI-only and are not yet submitted to the backend create payload.
+  - create page was later scaled down to better match the mock:
+    - smaller header/title sizing
+    - narrower container/card width
+    - tighter form spacing
+  - bottom `Cancel` action was simplified from a full secondary button to a quiet text link under the primary CTA.
+- Dependency note:
+  - installed `lucide-react` in `web/` to support mock-style icons.
+  - `web/package.json` and `web/package-lock.json` changed accordingly.
+- Build status:
+  - frontend build passes after the redesign iterations (`cd web && npm run build`).
+
+## Current UI Direction (Active)
+- Product visual direction is now based on the downloaded Figma mock:
+  - light, airy pastel gradients,
+  - white rounded cards,
+  - full-width sticky nav bars with centered inner containers,
+  - cleaner SaaS/product layout composition,
+  - lighter typography and less decorative chrome than the prior neon direction.
+
+## Session Update (March 9, 2026)
+- Split onboarding into separate routes:
+  - `/` = marketing landing page
+  - `/login` = login flow (email -> continue -> password)
+  - `/signup` = signup wizard
+- Reworked landing page into a full-screen metallic dark theme:
+  - Navbar with logo on left, `Log in` + `Sign up` on right
+  - Hero CTA: `Start a group gift now` (routes to `/login`)
+  - Updated messaging:
+    - `Group gifts, made easy and memorable`
+    - `One gift. One link. Everyone chips in.`
+- Signup flow improved:
+  - True wizard behavior:
+    - Step 1: email only
+    - Step 2: password only
+    - Step 3: name + DOB + consent only
+  - Back arrow on signup now goes to previous step (not landing)
+  - Post-signup success state added:
+    - `Check your email` confirmation screen
+    - masked email display
+    - resend verification email action
+    - back-to-login action
+- Login/signup action spacing improved:
+  - Added semantic + visual separation (`or`) between primary and secondary actions.
+- Build status:
+  - Frontend build passes after all onboarding/landing changes (`npm run build`).
+- Local auth confirmation note:
+  - In local Supabase config, `auth.email.enable_confirmations = false`, so local signup auto-confirms by default.
+  - To test verification-link flow locally, set it to `true` and use Inbucket (`http://127.0.0.1:54324`).
 
 ## Quick Resume Prompt (Copy/Paste)
 ```text
@@ -12,10 +103,12 @@ Current status:
 - Staging frontend is live on Vercel
 - Supabase auth with bearer tokens is implemented end-to-end
 - Resend send + webhook ingestion + email telemetry tables are implemented
+- Stripe webhook delivery/payment status updates verified (paid transitions confirmed)
+- Security hardening changes were implemented (new RLS + grant tightening + test-route gating)
 
 Current branch/worktree:
-- Branch: authentication
-- Local uncommitted auth/frontend/backend changes exist
+- Current branch may vary (worked across `authentication`, `security_hardening`, and `main` during this session)
+- Check `git status` first before making assumptions
 
 When you start:
 1) Read CODEX_SESSION_CONTEXT.md fully
@@ -24,9 +117,9 @@ When you start:
 4) Propose next steps before editing files
 
 Priority next tasks:
-- RLS/grant hardening for invitee/session/email tables
-- Decide policy for public test endpoint /api/test/send-checkout-link
-- Continue staging validation and release readiness checks
+- Ensure hardening migrations are applied to the intended hosted project(s)
+- Keep release notes/validation evidence with timestamp + key IDs
+- Optional follow-up: investigate remaining `npm audit` high severity item in `web/`
 ```
 
 ## Codex Collaboration Rules (Approval-First)
@@ -39,6 +132,18 @@ Priority next tasks:
 - Wait for my approval every time before applying edits.
 - After edits, summarize exactly what changed and what commands/tests were run.
 - If additional edits are needed, ask for approval again before making them.
+
+## Current Modified Files (UI Redesign Worktree)
+- `web/app/page.tsx`
+- `web/app/login/page.tsx`
+- `web/app/signup/page.tsx`
+- `web/app/gifts/page.tsx`
+- `web/app/gifts/new/page.tsx`
+- `web/app/gifts/[giftId]/page.tsx`
+- `web/app/join/[token]/page.tsx`
+- `web/app/globals.css`
+- `web/package.json`
+- `web/package-lock.json`
 
 ## Project Snapshot
 - Monorepo:
@@ -72,18 +177,19 @@ Priority next tasks:
   - `/api/test/gifts*` and lock/send path are auth-protected.
 - Public routes:
   - Join endpoints are public by design.
-  - `POST /api/test/send-checkout-link` is still unauthenticated (test endpoint).
+  - `POST /api/test/send-checkout-link` is now gated to `NODE_ENV=development`.
 
 ## Database / Migration Notes
 - Important migrations:
   - `20260224034449_auth_profile_and_rls.sql`
   - `20260224123000_add_email_delivery_tables.sql`
+  - `20260307130000_add_rls_for_gift_related_tables.sql`
+  - `20260307143000_harden_table_grants.sql`
 - RLS currently enabled for:
   - `public.user_profile`
   - `public.gift`
 - Risk to address:
-  - Legacy schema migration grants broad privileges (`anon`/`authenticated`) on several tables.
-  - `gift_invitee`, `stripe_checkout_session`, and email telemetry tables need hardening review.
+  - Legacy broad grants were tightened via migration, but ensure this was applied to each hosted environment.
 
 ## Frontend Integration Notes
 - Next rewrite:
@@ -152,15 +258,13 @@ Priority next tasks:
 7. Promote staging -> prod after signoff.
 
 ## Immediate Next Priorities
-1. Security hardening:
-   - Add/verify RLS policies for `gift_invitee`, `gift_invitation_link`, `stripe_checkout_session`.
-   - Restrict table grants for `anon` and `authenticated`.
-   - Re-check email table access model.
-2. Decide on test endpoint policy:
-   - Protect, gate by environment, or remove `/api/test/send-checkout-link` in staging/prod.
-3. Auth UX polish:
-   - Session persistence edge cases and protected-route redirects.
+1. Verify deployment state:
+   - Confirm both new hardening migrations are applied on hosted environments.
+2. Ops hygiene:
+   - Record/retain validation evidence (timestamps + Stripe/session IDs + DB confirmation).
+3. Optional follow-up:
+   - Investigate remaining `npm audit` high severity item in `web/`.
 
 ## Repo State Reminder
-- Active branch observed: `authentication`
-- There are local uncommitted changes (auth-related and frontend pages).
+- Active branch can differ from prior context; check with `git branch --show-current`.
+- This context file should be re-read at session start.
