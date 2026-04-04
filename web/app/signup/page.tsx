@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Gift, Sparkles } from "lucide-react";
 import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
+import { AuthLayout } from "../components/auth-layout";
 
 type SignupStep = "email" | "password" | "profile";
 
@@ -121,21 +121,14 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="figmaAuthShell">
-      <div className="figmaOnboardingWrap">
-        <div className="figmaOnboardingHeader">
-          <div className="figmaOnboardingLogo">
-            <Gift size={38} />
-          </div>
-          <h1>ChipIn</h1>
-          <p>
-            <Sparkles size={16} />
-            Make group gifting magical
-            <Sparkles size={16} />
-          </p>
-        </div>
-
-        <div className="figmaAuthCard figmaSignupCard">
+    <AuthLayout
+      footer={
+        <p className="figmaOnboardingFooter">
+          By continuing, you agree to our Terms &amp; Privacy Policy
+        </p>
+      }
+      showBackLink={false}
+    >
           {step !== "email" && !signupComplete ? (
             <button
               type="button"
@@ -295,12 +288,6 @@ export default function SignupPage() {
               {msg}
             </p>
           ) : null}
-        </div>
-
-        <p className="figmaOnboardingFooter">
-          By continuing, you agree to our Terms &amp; Privacy Policy
-        </p>
-      </div>
-    </main>
+    </AuthLayout>
   );
 }
