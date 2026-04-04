@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
+import { AuthLayout } from "../components/auth-layout";
 
 type LoginStep = "email" | "password";
 
@@ -54,16 +55,10 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="figmaAuthShell">
-      <div className="figmaAuthCard">
-        <Link href="/" className="figmaBackLink">
-          ← Back to home
-        </Link>
-
+    <AuthLayout cardClassName="figmaLoginCard">
         <div className="figmaAuthHeader">
-          <div className="figmaAuthLogo">C</div>
-          <h1>Welcome back</h1>
-          <p>Log in to manage your gifts, participants, and payment progress.</p>
+          <h2>Welcome back! 👋</h2>
+          <p>Log in to pick up where you left off</p>
         </div>
 
         <form className="figmaAuthForm" onSubmit={step === "email" ? onContinueEmail : onLogin}>
@@ -121,7 +116,6 @@ export default function LoginPage() {
         </form>
 
         {msg ? <p className="figmaMessageError">{msg}</p> : null}
-      </div>
-    </main>
+    </AuthLayout>
   );
 }
