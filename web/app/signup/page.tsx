@@ -8,6 +8,12 @@ import { getSupabaseBrowserClient } from "../../lib/supabase-browser";
 
 type SignupStep = "email" | "password" | "profile";
 
+function getEmailRedirectTo() {
+  if (typeof window === "undefined") return undefined;
+
+  return `${window.location.origin}/login`;
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState<SignupStep>("email");
@@ -72,6 +78,7 @@ export default function SignupPage() {
             dob,
             consent,
           },
+          emailRedirectTo: getEmailRedirectTo(),
         },
       });
       if (error) throw error;
@@ -100,6 +107,9 @@ export default function SignupPage() {
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: sentToEmail || email.trim().toLowerCase(),
+        options: {
+          emailRedirectTo: getEmailRedirectTo(),
+        },
       });
       if (error) throw error;
       setMsg("Verification email sent again.");
