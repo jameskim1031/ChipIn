@@ -760,6 +760,46 @@ a {
   outline-offset: 2px;
 }
 
+.figmaFieldHint {
+  margin: 2px 2px 0;
+  color: #6b7280;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.figmaFieldHintError {
+  color: #dc2626;
+}
+
+.figmaPasswordChecklist {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  color: #9ca3af;
+  font-size: 0.82rem;
+}
+
+.figmaPasswordChecklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.figmaPasswordChecklist li::before {
+  content: "○";
+  color: #c084fc;
+}
+
+.figmaPasswordChecklist li.isMet {
+  color: #15803d;
+}
+
+.figmaPasswordChecklist li.isMet::before {
+  content: "✓";
+}
+
 .figmaInput:focus {
   outline: none;
   border-color: #c084fc;

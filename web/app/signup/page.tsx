@@ -8,6 +8,16 @@ import { AuthLayout } from "../components/auth-layout";
 
 type SignupStep = "email" | "password" | "profile";
 
+const MIN_PASSWORD_LENGTH = 8;
+
+function getPasswordChecks(value: string) {
+  return {
+    minLength: value.length >= MIN_PASSWORD_LENGTH,
+    letter: /[A-Za-z]/.test(value),
+    digit: /\d/.test(value),
+  };
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState<SignupStep>("email");
@@ -41,11 +51,23 @@ export default function SignupPage() {
     setStep("password");
   }
 
+  function getPasswordValidationMessage(value: string) {
+    const checks = getPasswordChecks(value);
+    if (!value.trim()) return "Please set a password.";
+    if (!checks.minLength) {
+      return `Password must be at least ${MIN_PASSWORD_LENGTH} characters.`;
+    }
+    if (!checks.letter) return "Password must include a letter.";
+    if (!checks.digit) return "Password must include a number.";
+    return null;
+  }
+
   function onNextPassword(e: FormEvent) {
     e.preventDefault();
     setMsg(null);
-    if (!password.trim()) {
-      setMsg("Please set a password.");
+    const passwordValidationMessage = getPasswordValidationMessage(password);
+    if (passwordValidationMessage) {
+      setMsg(passwordValidationMessage);
       return;
     }
     setStep("profile");
@@ -120,6 +142,9 @@ export default function SignupPage() {
       setStep("email");
     }
   }
+
+  const passwordValidationMessage = getPasswordValidationMessage(password);
+  const passwordChecks = getPasswordChecks(password);
 
   return (
     <AuthLayout
@@ -212,10 +237,29 @@ export default function SignupPage() {
                         onClick={() => setShowPassword((current) => !current)}
                         aria-label={showPassword ? "Hide password" : "Show password"}
                         aria-pressed={showPassword}
+                        >
+                          {showPassword ? "Hide" : "Show"}
+                        </button>
+                      </div>
+                      <p
+                        className={
+                          password && passwordValidationMessage
+                            ? "figmaFieldHint figmaFieldHintError"
+                            : "figmaFieldHint"
+                        }
+                        aria-live="polite"
                       >
-                        {showPassword ? "Hide" : "Show"}
-                      </button>
-                    </div>
+                        {password && passwordValidationMessage
+                          ? passwordValidationMessage
+                          : `Use at least ${MIN_PASSWORD_LENGTH} characters with at least one letter and one number.`}
+                      </p>
+                      <ul className="figmaPasswordChecklist" aria-label="Password requirements">
+                        <li className={passwordChecks.minLength ? "isMet" : ""}>
+                          At least {MIN_PASSWORD_LENGTH} characters
+                        </li>
+                        <li className={passwordChecks.letter ? "isMet" : ""}>One letter</li>
+                        <li className={passwordChecks.digit ? "isMet" : ""}>One number</li>
+                      </ul>
                   </div>
                 ) : null}
 
@@ -259,7 +303,11 @@ export default function SignupPage() {
                 ) : null}
 
                 <div className="figmaAuthActions">
-                  <button className="figmaPrimaryButton figmaWideButton" type="submit" disabled={loading}>
+                  <button
+                    className="figmaPrimaryButton figmaWideButton"
+                    type="submit"
+                    disabled={loading || (step === "password" && Boolean(passwordValidationMessage))}
+                  >
                     {loading ? "Working..." : step === "profile" ? "Let's Go!" : "Continue"}
                   </button>
                   {step === "email" ? (
