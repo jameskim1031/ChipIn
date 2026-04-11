@@ -13,6 +13,7 @@ export default function SignupPage() {
   const [step, setStep] = useState<SignupStep>("email");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [fullName, setFullName] = useState("");
   const [dob, setDob] = useState("");
   const [consent, setConsent] = useState(false);
@@ -195,15 +196,26 @@ export default function SignupPage() {
                 {step === "password" ? (
                   <div className="figmaFieldGroup">
                     <label htmlFor="password">Password</label>
-                    <input
-                      className="figmaInput"
-                      id="password"
-                      type="password"
-                      placeholder="Create a password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
+                    <div className="figmaPasswordField">
+                      <input
+                        className="figmaInput figmaPasswordInput"
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                      <button
+                        className="figmaPasswordToggle"
+                        type="button"
+                        onClick={() => setShowPassword((current) => !current)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        aria-pressed={showPassword}
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
